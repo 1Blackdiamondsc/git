@@ -30,9 +30,16 @@ test_expect_success setup '
 '
 
 test_rebase () {
+	prep= &&
+	if test "$1" = "--prep"
+	then
+		prep="$2 &&"
+		shift 2
+	fi &&
 	expected="$1" &&
 	shift &&
 	test_expect_success "git rebase $*" "
+		$prep
 		git checkout main &&
 		git reset --hard E &&
 		git checkout side &&
@@ -69,12 +76,35 @@ test_rebase 'G F C D B A' --onto D main
 test_rebase 'G F C B A' --keep-base refs/heads/main
 test_rebase 'G F C B A' --keep-base main
 
+test_rebase --prep 'test_config rebase.forkPoint false' \
+	    'G F C E D B A'
+
+test_rebase --prep 'test_config_global rebase.forkPoint false &&
+		    test_config rebase.forkPoint true' \
+	    'G F E D B A'
+
+test_rebase --prep 'test_config_global rebase.forkPoint false' \
+	    'G F E D B A' --fork-point
+
+test_rebase --prep 'test_config rebase.forkPoint true' \
+	    'G F C E D B A' --no-fork-point
+
 test_expect_success 'git rebase --fork-point with ambigous refname' '
 	git checkout main &&
 	git checkout -b one &&
 	git checkout side &&
 	git tag one &&
 	test_must_fail git rebase --fork-point --onto D one
+'
+
+test_expect_success '--fork-point and --root both given' '
+	test_must_fail git rebase --fork-point --root 2>err &&
+	test_i18ngrep "cannot combine" err
+'
+
+test_expect_success 'rebase.forkPoint true and --root given' '
+	test_config rebase.forkPoint true &&
+	git rebase --root
 '
 
 test_done
