@@ -27,9 +27,16 @@ test_expect_success setup '
 '
 
 test_rebase () {
+	prep= &&
+	if test "$1" = "--prep"
+	then
+		prep="$2 &&"
+		shift 2
+	fi &&
 	expected="$1" &&
 	shift &&
 	test_expect_success "git rebase $*" "
+		$prep
 		git checkout master &&
 		git reset --hard E &&
 		git checkout side &&
@@ -65,6 +72,19 @@ test_rebase 'G F C D B A' --onto D master
 
 test_rebase 'G F C B A' --keep-base refs/heads/master
 test_rebase 'G F C B A' --keep-base master
+
+test_rebase --prep 'test_config rebase.forkPoint false' \
+	    'G F C E D B A'
+
+test_rebase --prep 'test_config_global rebase.forkPoint false &&
+		    test_config rebase.forkPoint true' \
+	    'G F E D B A'
+
+test_rebase --prep 'test_config_global rebase.forkPoint false' \
+	    'G F E D B A' --fork-point
+
+test_rebase --prep 'test_config rebase.forkPoint true' \
+	    'G F C E D B A' --no-fork-point
 
 test_expect_success 'git rebase --fork-point with ambigous refname' '
 	git checkout master &&
